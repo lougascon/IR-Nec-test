@@ -1,6 +1,6 @@
 # IR-Nec-test
 small base to simple remote control .
-Wire Ir receptor +5V GND Port 3 digital ARDUINO
+Wire Ir receptor eg type TL1838 +5V GND Port 3 digital ARDUINO
 [O]
 |||
 123  Pin 1 OUT Pin2 GND Pin3 5V
