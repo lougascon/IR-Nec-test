@@ -12,4 +12,4 @@ peekton 1656 tnt
 A.I&E ?
 Hitachi CLE-8761
 Lenson ?
-Strong igital tv
+Strong digital tv
