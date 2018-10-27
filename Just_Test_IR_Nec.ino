@@ -1,47 +1,48 @@
+
 /*Read Nec IR Remote control like GLOBSAT ETC...                   */
 /*    You can write module inside to control yours projects        */
 
 /*                  VARIABLES                                      */
 
-//Part IR
-unsigned int OldTime;
+//Part IR ****
+
+unsigned long OldTime;
 int List[34];
-int Index;
-int Xrec;
-boolean marque;
+byte Xrec;
 boolean marqueCodeRecu;
-byte octet2a;//inverse commande reçue
-byte octet2;//commande
-byte cdeerr;//verifie la validité de la reception code erreur
-byte poids[]={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,1,2,4,8,16,32,64,128,1,2,4,8,16,32,64,128};
-//End part IR
+byte octet2a;//control word = command logical inverse
+byte octet2;//command
+byte cdeerr;//error
 
+//End part IR ****
 
-/* Sub routines IR                                             */
+/*=============================================================*/
+/*              Bit operation                                  */
+/*=============================================================*/
+
+byte rotateRight(byte value, int amount) {
+    return (value >> amount) | (value << (8 - amount));
+}
+//this function comes from web forums
+
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+/* Sub routines IR     early                                   */
 /*===========================================================  */
-/*Fonction interruption Rec                                    */
+/*Fonction interrupt Rec                                       */
 /*===========================================================  */
 
 void Rec() //interrupt
 {
-marque=true;   //a falling signal is detected
-}
-
-/*==========================================================   */
-/*                Reception pulses                     */
-/*==========================================================   */
-
-//store times in array List
-    
-void ReceptionPulses()
-{
-List[Xrec]=(micros()-OldTime);++Xrec;//calcule longueur reçue
-OldTime=micros();//reprend l'heure de cette reception pour la suivante
-if(Xrec-1==1){if(List[1]>13350&List[1]<14600){}else{--Xrec;}}
+List[Xrec]=(micros()-OldTime);++Xrec;//calculate lenth receved
+OldTime=micros();// ini time to next interrupt
+if(Xrec-1==1){if(List[1]>13300&List[1]<14800){}else{--Xrec;}}
             //wait the good value  9000µs  and
                     //4500µs = 13500µs
-                             
+
 }
+
+
+
     
 /*==========================================================   */
 /*Fonction FinPulses                                           */
@@ -50,44 +51,34 @@ if(Xrec-1==1){if(List[1]>13350&List[1]<14600){}else{--Xrec;}}
 void FinPulses()
 {  
 cdeerr=0;
-traduction();//transform times in  1 or 0
-commande();Serial.println(octet2, HEX); //Here you read the remote button value
+tradcom();
+
+Serial.println(octet2,HEX);//octet2 contains button code on a byte
 if(cdeerr!=0){Serial.print("erreur No");Serial.println(cdeerr);}else{marqueCodeRecu=true;}
 }
 
+
+
 /*=============================================================*/
-/*           calculate and control the receve value            */
+/*                     TRADCOM                                 */
 /*=============================================================*/
 
-
-
-
-void commande()
+void tradcom()
 {
-octet2=0;octet2a=0;
-for(int i=18;i<=25;i++){if(List[i]==1){octet2=octet2+poids[i];}}
-for(int i=26;i<=33;i++){if(List[i]==1){octet2a=octet2a+poids[i];}}
-        //control
-if((octet2 ^ octet2a)!= 255){cdeerr=2;}
-        //Xor between two value
-}
-
-
-/*================================================================*/
-/* Store in List  0 et 1 with the length                          */
-/*================================================================*/
-void traduction()
-{
-  
-  //traduction length to 0 or 1 in array
-    
 for (int ix=2;ix<34;ix++)
 {
 if ((List[ix]>1040)&(List[ix]<1220))   {List[ix]=1;}
 if ((List[ix]>2150)&(List[ix]<2300))   {List[ix]=0;}
+}//read 0 and 1 transmitted
+octet2=0;octet2a=0;
+for(int i=18;i<=25;i++){if(List[i]==1){octet2=octet2+0x01;}octet2=(rotateRight(octet2,1));}
+for(int i=26;i<=33;i++){if(List[i]==1){octet2a=octet2a+0x01;}octet2a=(rotateRight(octet2a,1));}
+// build the command byte
+if((octet2 ^ octet2a)!= 255){cdeerr=2;}
 }
-     
-}
+/* Sub routines IR  END                                         */
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 /*==============================================================*/
 /*                   INIT SETUP()                               */
@@ -97,10 +88,13 @@ if ((List[ix]>2150)&(List[ix]<2300))   {List[ix]=0;}
 void setup()
 
 {
+  //PART IR****
 interrupts();//allow interrupts      
 Serial.begin(9600);
-attachInterrupt(1,Rec,FALLING);
+attachInterrupt(1,Rec,FALLING);//every falling signal launches rec
 marqueCodeRecu=false;
+OldTime=micros();
+  //PART IR END****
   
 }
 
@@ -111,10 +105,12 @@ marqueCodeRecu=false;
 
 void loop()
 {
+  //PART IR****
 if (Xrec==34){Xrec=0;FinPulses();}//all receved
-if (marque==true){marque=false;ReceptionPulses();}
 if (marqueCodeRecu==true){marqueCodeRecu=false;job();}
+  //PART IR END****
 }
+
 void job()
 {
 Serial.println("Your job start here");
